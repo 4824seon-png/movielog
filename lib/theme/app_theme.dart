@@ -59,7 +59,28 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
         ),
+        // onPressed가 null일 때(비활성) 디자인: 연보라 배경 + 흰 글자
+        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+        disabledForegroundColor: AppColors.onPrimary,
       ),
     ),
+    // TextFormField 공통 스타일 (2주차 7번: 상태별 테두리)
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.surfaceContainer,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      enabledBorder: _inputBorder(AppColors.inputBorder), // 기본 상태
+      focusedBorder: _inputBorder(AppColors.primary, width: 2), // 입력 중
+      errorBorder: _inputBorder(_colorScheme.error), // 검증 실패
+      // 검증 실패 + 입력 중
+      focusedErrorBorder: _inputBorder(_colorScheme.error, width: 2),
+    ),
   );
+
+  static OutlineInputBorder _inputBorder(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
 }

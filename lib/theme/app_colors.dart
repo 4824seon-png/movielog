@@ -12,4 +12,5 @@ class AppColors {
   static const Color surfaceContainer = Color(0xFFF3F1EC); // 통계 카드 배경
   static const Color outlineVariant = Color(0xFFE3E0D8); // 통계 카드 테두리
   static const Color secondaryContainer = Color(0xFFE9DDFF); // 장르 Chip 배경
+  static const Color inputBorder = Color(0xFFCAC4D0); // 입력창 기본 테두리
 }
