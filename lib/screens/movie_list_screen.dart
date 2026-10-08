@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/mock_movies.dart';
 import '../models/movie.dart';
 import '../services/fake_movie_service.dart';
+import '../storage/genre_preference.dart';
 import '../widgets/movie_grid.dart';
 import '../widgets/movie_list_empty.dart';
 import '../widgets/movie_list_error.dart';
@@ -27,10 +28,18 @@ class _MovieListScreenState extends State<MovieListScreen> {
   // 5주차에는 이 필드만 실제 API Service로 교체한다.
   final _movieService = const FakeMovieService();
 
+  // [4주차] 마지막 선택 장르를 기기에 저장·복원한다.
+  final _genrePreference = GenrePreference();
+
   // [4주차] late: 선언 시점에는 값이 없지만 initState에서 반드시 채운다는 약속.
   late Future<List<Movie>> _moviesFuture;
 
+  // 저장된 장르를 읽기 전까지는 '전체'로 시작한다.
   String _selectedGenre = allGenre;
+
+  // [4주차] 복원이 끝나기 전에 사용자가 Chip을 눌렀는지.
+  // true면 뒤늦게 끝난 복원값이 사용자의 선택을 덮어쓰지 않도록 버린다.
+  bool _userPickedGenre = false;
 
   // [4주차] FakeMovieService에 넘길 로드 모드. 개발 모드의 AppBar 메뉴로만 바꿀 수 있다.
   MovieLoadMode _loadMode = MovieLoadMode.success;
@@ -41,6 +50,44 @@ class _MovieListScreenState extends State<MovieListScreen> {
     // [4주차] 화면이 처음 만들어질 때 딱 한 번 요청한다.
     // build에서 만들면 Chip 탭·테마 변경 등으로 다시 그릴 때마다 재요청되어 Loading이 반복된다.
     _moviesFuture = _loadMovies();
+    // [4주차] 장르 복원은 영화 로드와 독립적이므로 기다리지 않고 동시에 시작한다.
+    _restoreGenre();
+  }
+
+  // [4주차] 저장된 장르를 읽어 Chip 선택에 반영한다.
+  // 직접 await한 뒤 setState를 부르므로 mounted 확인이 필요하다.
+  Future<void> _restoreGenre() async {
+    try {
+      final genre = await _genrePreference.read();
+
+      // 읽는 사이 다른 탭으로 이동해 화면이 dispose됐다면 setState를 부르지 않는다.
+      if (!mounted) return;
+      // 복원 전에 사용자가 이미 Chip을 눌렀다면 사용자의 선택을 우선한다.
+      if (_userPickedGenre) return;
+      // 저장된 값이 현재 장르 목록에 없으면(장르 이름 변경 등) '전체'를 유지한다.
+      if (!genres.contains(genre)) return;
+
+      setState(() => _selectedGenre = genre);
+    } catch (error) {
+      // 복원 실패는 치명적이지 않다. '전체'로 보여주고 로그만 남긴다.
+      debugPrint('장르 복원 실패: $error');
+    }
+  }
+
+  // [4주차] Chip 선택: 화면을 먼저 갱신하고, 저장은 그 뒤에 기다린다.
+  // await 뒤에 State·context를 쓰지 않으므로 mounted 확인이 필요 없다.
+  Future<void> _selectGenre(String genre) async {
+    setState(() {
+      _selectedGenre = genre;
+      _userPickedGenre = true;
+    });
+
+    try {
+      await _genrePreference.save(genre);
+    } catch (error) {
+      // 저장 실패 시 다음 실행 때 '전체'로 보일 뿐이므로 화면은 그대로 둔다.
+      debugPrint('장르 저장 실패: $error');
+    }
   }
 
   // [4주차] Service 호출을 감싸 실패 원인을 로그로 남긴다.
@@ -100,8 +147,8 @@ class _MovieListScreenState extends State<MovieListScreen> {
           _GenreChipBar(
             selectedGenre: _selectedGenre,
             // Chip 탭 → setState → build 재호출 → FutureBuilder는 같은 _moviesFuture(이미 done)를 받음
-            // → 새 요청·Loading 없이 _filterByGenre만 다시 계산되어 Grid 갱신
-            onSelected: (genre) => setState(() => _selectedGenre = genre),
+            // → 새 요청·Loading 없이 _filterByGenre만 다시 계산되어 Grid 갱신 → 이후 장르 저장
+            onSelected: _selectGenre,
           ),
           // Column 안에서 스크롤 위젯(GridView)은 높이가 정해져야 한다.
           // Expanded가 Chip 바를 뺀 남은 높이를 전부 FutureBuilder(→ GridView)에 준다.
