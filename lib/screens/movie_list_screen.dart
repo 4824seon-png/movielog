@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../data/mock_movies.dart';
 import '../models/movie.dart';
-import '../widgets/movie_card.dart';
+import '../services/fake_movie_service.dart';
+import '../widgets/movie_grid.dart';
 import '../widgets/movielog_app_bar.dart';
 
-/// 영화 탭 화면. 장르 Chip으로 Mock 영화 목록을 필터링해 2열 Grid로 보여준다.
+/// 영화 탭 화면. FakeMovieService로 영화 목록을 비동기로 불러오고,
+/// 장르 Chip으로 필터링해 2열 Grid로 보여준다.
 ///
-/// 선택한 장르를 화면 안에서 기억해야 하므로 StatefulWidget으로 만든다.
+/// 선택한 장르와 요청 중인 Future를 화면 안에서 기억해야 하므로 StatefulWidget으로 만든다.
 /// (URL Query Parameter로 표현하는 방식은 Challenge 범위라 사용하지 않는다.)
 class MovieListScreen extends StatefulWidget {
   const MovieListScreen({super.key});
@@ -17,19 +19,33 @@ class MovieListScreen extends StatefulWidget {
 }
 
 class _MovieListScreenState extends State<MovieListScreen> {
+  // [4주차] 화면은 "Future<List<Movie>>를 주는 곳"만 안다.
+  // 5주차에는 이 필드만 실제 API Service로 교체한다.
+  final _movieService = const FakeMovieService();
+
+  // [4주차] late: 선언 시점에는 값이 없지만 initState에서 반드시 채운다는 약속.
+  late Future<List<Movie>> _moviesFuture;
+
   String _selectedGenre = allGenre;
 
-  // 선택한 장르에 맞는 영화만 걸러낸다. build마다 다시 계산되므로 항상 최신 선택을 반영한다.
-  // 원본 movies는 바꾸지 않고, where로 조건에 맞는 항목만 모은 새 List를 만든다.
-  List<Movie> get _filteredMovies {
-    if (_selectedGenre == allGenre) return movies;
-    return movies.where((movie) => movie.genre == _selectedGenre).toList();
+  @override
+  void initState() {
+    super.initState();
+    // [4주차] 화면이 처음 만들어질 때 딱 한 번 요청한다.
+    // build에서 만들면 Chip 탭·테마 변경 등으로 다시 그릴 때마다 재요청되어 Loading이 반복된다.
+    _moviesFuture = _movieService.fetchMovies();
+  }
+
+  // [4주차] getter(_filteredMovies) → 받은 목록을 걸러내는 함수로 변경.
+  // 목록은 Future가 완료돼야 생기므로, 완료된 목록(source)을 받아 선택한 장르만 남긴다.
+  // 원본은 바꾸지 않고, where로 조건에 맞는 항목만 모은 새 List를 만든다.
+  List<Movie> _filterByGenre(List<Movie> source) {
+    if (_selectedGenre == allGenre) return source;
+    return source.where((movie) => movie.genre == _selectedGenre).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredMovies = _filteredMovies;
-
     return Scaffold(
       appBar: const MovieLogAppBar(title: '영화'),
       body: Column(
@@ -37,32 +53,36 @@ class _MovieListScreenState extends State<MovieListScreen> {
         children: [
           _GenreChipBar(
             selectedGenre: _selectedGenre,
-            // Chip 탭 → setState → build 재호출 → _filteredMovies 재계산 → Grid 갱신
+            // Chip 탭 → setState → build 재호출 → FutureBuilder는 같은 _moviesFuture(이미 done)를 받음
+            // → 새 요청·Loading 없이 _filterByGenre만 다시 계산되어 Grid 갱신
             onSelected: (genre) => setState(() => _selectedGenre = genre),
           ),
           // Column 안에서 스크롤 위젯(GridView)은 높이가 정해져야 한다.
-          // Expanded가 Chip 바를 뺀 남은 높이를 전부 GridView에 준다.
+          // Expanded가 Chip 바를 뺀 남은 높이를 전부 FutureBuilder(→ GridView)에 준다.
           Expanded(
-            child: filteredMovies.isEmpty
-                ? const Center(child: Text('해당 장르의 영화가 없어요.'))
-                // GridView.builder: 화면에 보이는 칸만 만들어서 항목이 많아도 효율적이다.
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredMovies.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, // 한 줄에 2개
-                          crossAxisSpacing: 12, // 좌우 간격
-                          mainAxisSpacing: 16, // 위아래 간격
-                          // 칸의 가로/세로 비율. 1보다 작을수록 세로로 길어진다.
-                          // 카드 하단 텍스트가 잘리면 이 값을 낮춘다.
-                          childAspectRatio: 0.65,
-                        ),
-                    itemBuilder: (context, index) {
-                      final movie = filteredMovies[index];
-                      return MovieCard(movie: movie); // 칸 크기가 곧 카드 크기
-                    },
-                  ),
+            // [4주차] FutureBuilder는 Future를 실행하지 않고, 전달받은 Future의 상태만 관찰한다.
+            child: FutureBuilder<List<Movie>>(
+              future: _moviesFuture, // 여기서 fetchMovies()를 직접 호출하지 않는다
+              builder: (context, snapshot) {
+                // 1) 완료 전 → Loading
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // 2) 완료 → data가 null일 수 있으므로 빈 목록으로 대체한 뒤 장르 필터 적용
+                final filteredMovies = _filterByGenre(
+                  snapshot.data ?? const <Movie>[],
+                );
+
+                // (임시) 필터 결과가 비었을 때. 미션에서 MovieListEmpty 위젯으로 교체한다.
+                if (filteredMovies.isEmpty) {
+                  return const Center(child: Text('해당 장르의 영화가 없어요.'));
+                }
+
+                // 3) Success → 3주차 Grid를 분리한 MovieGrid 재사용
+                return MovieGrid(movies: filteredMovies);
+              },
+            ),
           ),
         ],
       ),
