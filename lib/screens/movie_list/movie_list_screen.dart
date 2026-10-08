@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/mock_movies.dart';
 import '../../models/movie.dart';
@@ -137,15 +138,32 @@ class _MovieListScreenState extends State<MovieListScreen> {
     return Scaffold(
       appBar: MovieLogAppBar(
         title: '영화',
-        // kDebugMode: 개발 중(debug 빌드)에만 true. release 빌드에서는 메뉴가 사라진다.
         actions: [
+          // kDebugMode: 개발 중(debug 빌드)에만 true. release 빌드에서는 메뉴가 사라진다.
           if (kDebugMode)
             LoadModeMenu(selected: _loadMode, onSelected: _changeLoadMode),
+          // Figma W3-02 오른쪽 위 검색 아이콘 (18px, #494551). 검색 기능은 이후 주차 범위.
+          IconButton(
+            tooltip: '검색',
+            onPressed: () => ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('검색 기능은 준비 중이에요.'))),
+            // search.svg는 24px 상자 안에 18px 크기의 돋보기가 그려져 있다.
+            icon: SvgPicture.asset(
+              'assets/icons/search.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                Theme.of(context).colorScheme.onSurfaceVariant,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
         ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 8), // Figma: 본문 위 여백 8
           GenreChipBar(
             selectedGenre: _selectedGenre,
             // Chip 탭 → setState → build 재호출 → FutureBuilder는 같은 _moviesFuture(이미 done)를 받음

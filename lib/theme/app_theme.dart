@@ -14,7 +14,11 @@ class AppTheme {
     onPrimary: AppColors.onPrimary,
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
+    onSurfaceVariant: AppColors.onSurfaceVariant,
     surfaceContainer: AppColors.surfaceContainer,
+    surfaceContainerHighest: AppColors.surfaceContainerHighest,
+    inverseSurface: AppColors.inverseSurface,
+    onInverseSurface: AppColors.onInverseSurface,
     outlineVariant: AppColors.outlineVariant,
     secondaryContainer: AppColors.secondaryContainer,
     onSecondaryContainer: AppColors.primary,
@@ -36,11 +40,16 @@ class AppTheme {
       backgroundColor: AppColors.surface,
       foregroundColor: AppColors.onSurface,
       elevation: 0,
+      // 목록을 스크롤해도 AppBar 색이 변하지 않도록 (Figma: 고정 배경색)
+      scrolledUnderElevation: 0,
       centerTitle: false,
+      toolbarHeight: 64, // Figma TopAppBar 높이
+      // Figma W3-02·W3-04 화면 제목: Manrope Medium 22 / 행간 28
       titleTextStyle: TextStyle(
         fontFamily: 'Manrope',
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
+        fontSize: 22,
+        fontWeight: FontWeight.w500,
+        height: 28 / 22,
         color: AppColors.primary,
       ),
     ),
