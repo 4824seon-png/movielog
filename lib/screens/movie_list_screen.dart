@@ -4,6 +4,8 @@ import '../data/mock_movies.dart';
 import '../models/movie.dart';
 import '../services/fake_movie_service.dart';
 import '../widgets/movie_grid.dart';
+import '../widgets/movie_list_empty.dart';
+import '../widgets/movie_list_loading.dart';
 import '../widgets/movielog_app_bar.dart';
 
 /// 영화 탭 화면. FakeMovieService로 영화 목록을 비동기로 불러오고,
@@ -66,7 +68,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
               builder: (context, snapshot) {
                 // 1) 완료 전 → Loading
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const MovieListLoading();
                 }
 
                 // 2) 완료 → data가 null일 수 있으므로 빈 목록으로 대체한 뒤 장르 필터 적용
@@ -74,9 +76,9 @@ class _MovieListScreenState extends State<MovieListScreen> {
                   snapshot.data ?? const <Movie>[],
                 );
 
-                // (임시) 필터 결과가 비었을 때. 미션에서 MovieListEmpty 위젯으로 교체한다.
+                // 서버가 빈 목록을 줬거나, 장르 필터 결과가 비었을 때 → Empty
                 if (filteredMovies.isEmpty) {
-                  return const Center(child: Text('해당 장르의 영화가 없어요.'));
+                  return const MovieListEmpty();
                 }
 
                 // 3) Success → 3주차 Grid를 분리한 MovieGrid 재사용
