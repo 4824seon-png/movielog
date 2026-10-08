@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/movie.dart';
-import 'movie_card.dart';
+import '../../../models/movie.dart';
+import '../../../widgets/movie_card.dart';
 
 /// 영화 목록을 2열 Grid로 보여준다.
 /// 어떤 목록을 보여줄지는 부모가 정하고, 이 위젯은 그리기만 담당한다(Success 상태 화면).
