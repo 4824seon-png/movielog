@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/mock_movies.dart';
-import '../models/movie.dart';
-import '../widgets/movie_card.dart';
-import '../widgets/movielog_app_bar.dart';
+import '../../data/mock_movies.dart';
+import '../../models/movie.dart';
+import '../../widgets/movie_card.dart';
+import '../../widgets/movielog_app_bar.dart';
 
 /// 홈 탭 화면. MainScreen의 body(child)로 표시된다.
 ///

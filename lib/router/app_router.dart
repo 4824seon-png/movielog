@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 
-import '../screens/home_screen.dart';
-import '../screens/main_screen.dart';
-import '../screens/movie_detail_screen.dart';
-import '../screens/movie_list_screen.dart';
-import '../screens/profile_screen.dart';
-import '../screens/register_screen.dart';
-import '../screens/start_screen.dart';
+import '../screens/home/home_screen.dart';
+import '../screens/main/main_screen.dart';
+import '../screens/movie_detail/movie_detail_screen.dart';
+import '../screens/movie_list/movie_list_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/register/register_screen.dart';
+import '../screens/start/start_screen.dart';
 
 /// 앱의 모든 경로(URL)와 화면의 연결을 한 곳에서 관리한다.
 class AppRouter {

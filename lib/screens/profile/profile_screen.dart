@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../widgets/movielog_app_bar.dart';
-import '../widgets/stat_item.dart';
+import '../../widgets/movielog_app_bar.dart';
+import 'widgets/stat_item.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
