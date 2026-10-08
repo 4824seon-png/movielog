@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/mock_movies.dart';
@@ -5,6 +6,7 @@ import '../models/movie.dart';
 import '../services/fake_movie_service.dart';
 import '../widgets/movie_grid.dart';
 import '../widgets/movie_list_empty.dart';
+import '../widgets/movie_list_error.dart';
 import '../widgets/movie_list_loading.dart';
 import '../widgets/movielog_app_bar.dart';
 
@@ -30,12 +32,47 @@ class _MovieListScreenState extends State<MovieListScreen> {
 
   String _selectedGenre = allGenre;
 
+  // [4주차] FakeMovieService에 넘길 로드 모드. 개발 모드의 AppBar 메뉴로만 바꿀 수 있다.
+  MovieLoadMode _loadMode = MovieLoadMode.success;
+
   @override
   void initState() {
     super.initState();
     // [4주차] 화면이 처음 만들어질 때 딱 한 번 요청한다.
     // build에서 만들면 Chip 탭·테마 변경 등으로 다시 그릴 때마다 재요청되어 Loading이 반복된다.
-    _moviesFuture = _movieService.fetchMovies();
+    _moviesFuture = _loadMovies();
+  }
+
+  // [4주차] Service 호출을 감싸 실패 원인을 로그로 남긴다.
+  // 화면에는 고정 문구만 보여주고, 개발자는 콘솔에서 원인을 확인한다.
+  Future<List<Movie>> _loadMovies() async {
+    try {
+      // await가 있어야 Service의 오류가 이 try 안에서 발생해 catch로 잡힌다.
+      return await _movieService.fetchMovies(mode: _loadMode);
+    } on MovieLoadException catch (error, stackTrace) {
+      debugPrint('영화 로드 실패: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      // 다시 던져야 Future가 "오류로 완료"되어 FutureBuilder가 hasError를 받는다.
+      rethrow;
+    } finally {
+      debugPrint('영화 로드 시도 종료'); // 성공·실패와 관계없이 실행
+    }
+  }
+
+  // [4주차] 다시 시도: 이미 오류로 완료된 Future 대신 새 Future를 할당한다.
+  // setState 안에서 바꿔야 FutureBuilder가 새 Future를 받아 Loading부터 다시 시작한다.
+  void _retry() {
+    setState(() {
+      _moviesFuture = _loadMovies(); // 현재 _loadMode 그대로 다시 요청
+    });
+  }
+
+  // [4주차] 개발용: 로드 모드를 바꾸고 그 모드로 바로 다시 요청한다.
+  void _changeLoadMode(MovieLoadMode mode) {
+    setState(() {
+      _loadMode = mode;
+      _moviesFuture = _loadMovies();
+    });
   }
 
   // [4주차] getter(_filteredMovies) → 받은 목록을 걸러내는 함수로 변경.
@@ -49,7 +86,14 @@ class _MovieListScreenState extends State<MovieListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const MovieLogAppBar(title: '영화'),
+      appBar: MovieLogAppBar(
+        title: '영화',
+        // kDebugMode: 개발 중(debug 빌드)에만 true. release 빌드에서는 메뉴가 사라진다.
+        actions: [
+          if (kDebugMode)
+            _LoadModeMenu(selected: _loadMode, onSelected: _changeLoadMode),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -71,7 +115,13 @@ class _MovieListScreenState extends State<MovieListScreen> {
                   return const MovieListLoading();
                 }
 
-                // 2) 완료 → data가 null일 수 있으므로 빈 목록으로 대체한 뒤 장르 필터 적용
+                // 2) 오류로 완료 → Error. 반드시 Empty 확인보다 먼저 검사한다.
+                // (오류 시 data는 null이라, 아래 ?? 처리 후엔 빈 목록 = Empty로 잘못 보인다)
+                if (snapshot.hasError) {
+                  return MovieListError(onRetry: _retry);
+                }
+
+                // 3) 값으로 완료 → 장르 필터 적용
                 final filteredMovies = _filterByGenre(
                   snapshot.data ?? const <Movie>[],
                 );
@@ -81,7 +131,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                   return const MovieListEmpty();
                 }
 
-                // 3) Success → 3주차 Grid를 분리한 MovieGrid 재사용
+                // 4) Success → 3주차 Grid를 분리한 MovieGrid 재사용
                 return MovieGrid(movies: filteredMovies);
               },
             ),
@@ -138,6 +188,33 @@ class _GenreChipBar extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// 개발용 로드 모드 선택 메뉴 (kDebugMode에서만 표시).
+/// Empty·Error 화면과 재시도 흐름을 앱 실행 중에 재현하기 위해 사용한다.
+class _LoadModeMenu extends StatelessWidget {
+  const _LoadModeMenu({required this.selected, required this.onSelected});
+
+  final MovieLoadMode selected;
+  final ValueChanged<MovieLoadMode> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<MovieLoadMode>(
+      icon: const Icon(Icons.bug_report_outlined),
+      tooltip: '로드 모드 (개발용)',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        // MovieLoadMode.values: enum의 모든 값(success, empty, failure)을 순서대로 담은 List
+        for (final mode in MovieLoadMode.values)
+          CheckedPopupMenuItem(
+            value: mode,
+            checked: mode == selected, // 현재 모드에 체크 표시
+            child: Text(mode.name), // enum 값의 이름 문자열 ('success' 등)
+          ),
+      ],
     );
   }
 }
